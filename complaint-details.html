@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaint Details | Hostel Complaint Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/complaint.css">
+</head>
+<body style="background-color:var(--color-bg);">
+
+  <div class="content-body" style="max-width: 900px; padding: 2.5rem 1.5rem;">
+    <!-- Top Return Bar -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+      <a href="javascript:history.back()" id="btn-back-link" class="btn btn-outline btn-sm">
+        &larr; Back to Dashboard
+      </a>
+      <span id="page-user-badge" class="mono-tag" style="background:#EEF2F6; padding:0.35rem 0.75rem; border-radius:var(--radius-sm); color:var(--color-secondary);">
+        Authenticating...
+      </span>
+    </div>
+
+    <!-- Loading State -->
+    <div id="details-loading" style="text-align:center; padding:3rem;">
+      <span class="spinner" style="border-top-color:var(--color-secondary); width:32px; height:32px;"></span>
+      <p style="margin-top:0.75rem; color:var(--color-text-muted);">Loading grievance details...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="details-error" class="panel" style="display:none; padding:2rem; text-align:center;">
+      <h3 style="color:#DC2626; margin-bottom:0.5rem;">Unable to Load Grievance</h3>
+      <p id="details-error-msg" style="color:var(--color-text-muted); margin-bottom:1.5rem;">The complaint record does not exist or you lack permission to view it.</p>
+      <a href="index.html" class="btn btn-primary">Return Home</a>
+    </div>
+
+    <!-- Complaint Detail Card -->
+    <div id="details-content" class="panel" style="display:none;">
+      <div class="panel-header">
+        <div>
+          <span id="view-id" class="mono-tag" style="color:var(--color-secondary); font-size:0.9rem; font-weight:700;">CMP-ID</span>
+          <h1 id="view-title" style="font-size:1.75rem; margin-top:0.25rem;">Complaint Title</h1>
+        </div>
+        <div id="view-status-badge"></div>
+      </div>
+
+      <div class="panel-body">
+        <div class="detail-meta-list">
+          <div class="meta-item">
+            <span class="meta-label">Student Name</span>
+            <span class="meta-value" id="view-student-name">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">USN</span>
+            <span class="meta-value" id="view-usn">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Location / Room</span>
+            <span class="meta-value" id="view-location">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Category</span>
+            <span class="meta-value" id="view-category">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Submission Date</span>
+            <span class="meta-value" id="view-date">N/A</span>
+          </div>
+        </div>
+
+        <div style="margin:1.5rem 0;">
+          <h3 style="font-size:1.1rem; margin-bottom:0.4rem; color:var(--color-dark);">Description</h3>
+          <p id="view-description" class="detail-description"></p>
+        </div>
+
+        <!-- Assignment Callout -->
+        <div id="view-assignment-card" class="info-callout assigned-callout" style="display:none;">
+          <h4>Assigned Maintenance Personnel</h4>
+          <p><strong>Staff Assigned:</strong> <span id="view-assignee"></span></p>
+          <p style="margin-top:2px;"><strong>Instructions / Notes:</strong> <span id="view-assign-notes"></span></p>
+        </div>
+
+        <!-- Resolution Callout -->
+        <div id="view-resolution-card" class="info-callout resolved-callout" style="display:none; margin-top:1rem;">
+          <h4>Resolution Information</h4>
+          <p id="view-resolution-text"></p>
+        </div>
+
+        <!-- Rejection Callout -->
+        <div id="view-rejection-card" class="info-callout rejected-callout" style="display:none; margin-top:1rem;">
+          <h4>Grievance Rejected</h4>
+          <p id="view-rejection-text"></p>
+        </div>
+
+        <!-- Timeline -->
+        <div style="margin-top:2rem; border-top:1px solid var(--color-border); padding-top:1.5rem;">
+          <h3 style="font-size:1.2rem; margin-bottom:0.75rem; color:var(--color-dark);">Complaint History &amp; Timeline</h3>
+          <div id="view-timeline" class="timeline">
+            <!-- Timeline injected -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { auth } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getUserProfile } from "./js/auth.js";
+    import { getComplaintById, subscribeComplaintHistory } from "./js/complaints.js";
+    import { formatDate, formatTimeAgo, getStatusBadgeHtml, sanitize } from "./js/utils.js";
+    import { notify } from "./js/notifications.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const complaintDocId = params.get("id");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "student-login.html";
+        return;
+      }
+
+      try {
+        const profile = await getUserProfile(user.uid);
+        if (!profile) {
+          showError("Your user profile could not be found.");
+          return;
+        }
+        const role = profile.role;
+
+        const badge = document.getElementById("page-user-badge");
+        if (badge) badge.textContent = `${role.toUpperCase()} SESSION`;
+
+        const backLink = document.getElementById("btn-back-link");
+        if (backLink) {
+          backLink.href = (role === "admin") ? "admin-dashboard.html" : "student-dashboard.html";
+        }
+
+        if (!complaintDocId) {
+          showError("No complaint ID provided in URL.");
+          return;
+        }
+
+        const complaint = await getComplaintById(complaintDocId);
+        if (!complaint) {
+          showError("Complaint record not found.");
+          return;
+        }
+
+        // Student privacy verification: students can only see their own complaint
+        if (role === "student" && complaint.studentId !== user.uid) {
+          showError("Access Denied: You do not have permission to view other students' complaints.");
+          return;
+        }
+
+        renderDetails(complaint);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    function showError(msg) {
+      document.getElementById("details-loading").style.display = "none";
+      document.getElementById("details-content").style.display = "none";
+      const errBox = document.getElementById("details-error");
+      document.getElementById("details-error-msg").textContent = msg;
+      errBox.style.display = "block";
+    }
+
+    function renderDetails(c) {
+      document.getElementById("details-loading").style.display = "none";
+      document.getElementById("details-content").style.display = "block";
+
+      document.getElementById("view-id").textContent = c.complaintId || c.id;
+      document.getElementById("view-title").textContent = c.title;
+      document.getElementById("view-status-badge").innerHTML = getStatusBadgeHtml(c.status);
+      document.getElementById("view-student-name").textContent = c.studentName;
+      document.getElementById("view-usn").textContent = c.usn;
+      document.getElementById("view-location").textContent = `${c.hostelBlock}, Room ${c.roomNumber}`;
+      document.getElementById("view-category").textContent = c.category;
+      document.getElementById("view-date").textContent = formatDate(c.createdAt);
+      document.getElementById("view-description").textContent = c.description;
+
+      if (c.assignedTo) {
+        document.getElementById("view-assignee").textContent = c.assignedTo;
+        document.getElementById("view-assign-notes").textContent = c.assignmentNotes || "No specific instructions.";
+        document.getElementById("view-assignment-card").style.display = "block";
+      }
+
+      if (c.status === "Resolved" && c.resolutionDetails) {
+        document.getElementById("view-resolution-text").textContent = c.resolutionDetails;
+        document.getElementById("view-resolution-card").style.display = "block";
+      }
+
+      if (c.status === "Rejected" && c.rejectionReason) {
+        document.getElementById("view-rejection-text").textContent = c.rejectionReason;
+        document.getElementById("view-rejection-card").style.display = "block";
+      }
+
+      // History
+      const timelineEl = document.getElementById("view-timeline");
+      subscribeComplaintHistory(c.id, (list) => {
+        if (list.length === 0) {
+          timelineEl.innerHTML = `<p style="color:var(--color-text-muted);">No activity logs available.</p>`;
+          return;
+        }
+
+        timelineEl.innerHTML = list.map(h => `
+          <div class="timeline-step">
+            <div class="timeline-marker ${h.actionType === 'STATUS_CHANGE' ? 'active' : ''}"></div>
+            <div class="timeline-step-header">
+              <span class="timeline-step-title">${sanitize(h.message)}</span>
+              <span class="timeline-step-time">${formatTimeAgo(h.timestamp)}</span>
+            </div>
+            <div class="timeline-by">Action by: ${sanitize(h.performedByName || "Admin")}</div>
+          </div>
+        `).join("");
+      });
+    }
+  </script>
+</body>
+</html>

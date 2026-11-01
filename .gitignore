@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+node_modules/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+*service-account*.json
+firebase-service-account.json

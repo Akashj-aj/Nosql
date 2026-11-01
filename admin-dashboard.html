@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warden &amp; Admin Dashboard | Hostel Complaint Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/complaint.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside id="app-sidebar" class="sidebar" style="background-color:var(--color-dark);">
+      <div class="sidebar-header" style="border-color:#1E293B;">
+        <div class="sidebar-brand">
+          <div>
+            <div class="brand-title">Hostel Admin</div>
+            <span class="brand-sub" style="color:var(--color-primary);">Warden Console</span>
+          </div>
+        </div>
+        <button id="sidebar-close" class="sidebar-close" aria-label="Close sidebar">&times;</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="admin-dashboard.html" class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Complaints Overview</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer" style="border-color:#1E293B;">
+        <div class="user-badge">
+          <div class="user-info">
+            <div class="user-name" id="sidebar-admin-name">Hostel Warden</div>
+            <div class="user-role" style="color:#94A3B8;">System Administrator</div>
+          </div>
+        </div>
+        <button id="btn-admin-logout" class="btn-logout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobile-menu-toggle" class="mobile-toggle" aria-label="Open menu">☰</button>
+          <div class="topbar-title">
+            <h1>Hostel Complaints Administration</h1>
+            <p>Welcome, <span id="admin-welcome-name" style="font-weight:600; color:var(--color-secondary);">Warden</span> &mdash; Full System Authority</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="mono-tag" style="background:rgba(0, 48, 50, 0.1); color:var(--color-secondary); padding:0.4rem 0.8rem; border-radius:var(--radius-sm); font-weight:700;">
+            ● ADMIN SESSION ACTIVE
+          </span>
+        </div>
+      </header>
+
+      <!-- Content Body -->
+      <main class="content-body">
+        <!-- 6 Metrics Grid -->
+        <section class="metrics-grid">
+          <!-- Total -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-total">0</span>
+              <span class="stat-label">Total Complaints</span>
+            </div>
+          </div>
+
+          <!-- Pending -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-pending">0</span>
+              <span class="stat-label">Pending Review</span>
+            </div>
+          </div>
+
+          <!-- Assigned -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-assigned">0</span>
+              <span class="stat-label">Staff Assigned</span>
+            </div>
+          </div>
+
+          <!-- In Progress -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-inprogress">0</span>
+              <span class="stat-label">In Progress</span>
+            </div>
+          </div>
+
+          <!-- Resolved -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-resolved">0</span>
+              <span class="stat-label">Resolved</span>
+            </div>
+          </div>
+
+          <!-- Rejected -->
+          <div class="stat-card">
+            <div class="stat-data">
+              <span class="stat-value" id="admin-stat-rejected">0</span>
+              <span class="stat-label">Rejected</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Complaints Table Panel -->
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">All Student Grievances</h2>
+              <p style="font-size:0.825rem; color:var(--color-text-muted);">Manage maintenance assignments, status updates, and communications</p>
+            </div>
+            <div id="admin-record-count" class="mono-tag" style="background:#EEF2F6; padding:0.35rem 0.8rem; border-radius:var(--radius-sm); color:var(--color-secondary); font-weight:600;">
+              0 Records Found
+            </div>
+          </div>
+
+          <!-- Filter Toolbar -->
+          <div class="filter-bar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="admin-search-input" class="form-control" placeholder="Search by Complaint ID, Student Name, USN, or Room...">
+            </div>
+
+            <div class="filter-select">
+              <select id="admin-filter-category" class="form-control">
+                <option value="all">All Categories</option>
+              </select>
+            </div>
+
+            <div class="filter-select">
+              <select id="admin-filter-status" class="form-control">
+                <option value="all">All Statuses</option>
+              </select>
+            </div>
+
+            <div class="filter-select">
+              <select id="admin-sort-order" class="form-control">
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+              </select>
+            </div>
+
+            <button type="button" id="btn-reset-filters" class="btn btn-outline btn-sm">
+              Reset Filters
+            </button>
+          </div>
+
+          <!-- Table -->
+          <div class="table-responsive">
+            <div id="admin-table-loading" style="text-align:center; padding:2rem; display:none;">
+              <span class="spinner" style="border-top-color:var(--color-secondary); width:28px; height:28px;"></span>
+              <p style="margin-top:0.5rem; font-size:0.875rem; color:var(--color-text-muted);">Loading grievances from database...</p>
+            </div>
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Complaint ID</th>
+                  <th>Student &amp; USN</th>
+                  <th>Room &amp; Block</th>
+                  <th>Category</th>
+                  <th>Title</th>
+                  <th>Submission Date</th>
+                  <th>Status</th>
+                  <th>Assigned Staff</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-complaints-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="admin-empty-state" class="empty-state" style="display:none;">
+            <h3>No Complaints Found</h3>
+            <p>No complaints match your selected search terms or filters.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Admin Manage Complaint Modal -->
+  <div id="admin-manage-modal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 840px;">
+      <div class="modal-header">
+        <div>
+          <span id="modal-complaint-id" class="mono-tag" style="color:var(--color-secondary); font-size:0.85rem; font-weight:700;">CMP-ID</span>
+          <h3 id="modal-title" class="modal-title" style="margin-top:0.25rem;">Manage Grievance</h3>
+        </div>
+        <button type="button" class="modal-close close-manage-modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Overview Grid -->
+        <div class="detail-header-row">
+          <div>
+            <div style="font-size:0.75rem; color:var(--color-text-muted); text-transform:uppercase; font-family:var(--font-mono);">Current Status</div>
+            <div id="modal-status-badge" style="margin-top:4px;"></div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem; color:var(--color-text-muted); text-transform:uppercase; font-family:var(--font-mono);">Submission Date</div>
+            <div id="modal-date" style="font-weight:600; font-size:0.9rem; margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <div class="detail-meta-list">
+          <div class="meta-item">
+            <span class="meta-label">Student Name</span>
+            <span class="meta-value" id="modal-student-name">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">USN</span>
+            <span class="meta-value" id="modal-usn">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Location</span>
+            <span class="meta-value" id="modal-location">N/A</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Category</span>
+            <span class="meta-value" id="modal-category">N/A</span>
+          </div>
+        </div>
+
+        <div>
+          <h4 style="font-size:1rem; margin-bottom:0.4rem; color:var(--color-dark);">Complaint Description</h4>
+          <p id="modal-description" class="detail-description"></p>
+        </div>
+
+        <div class="complaint-details-grid" style="margin-top:1.5rem; border-top:1px solid var(--color-border); padding-top:1.5rem;">
+          <!-- Left Column: Actions (Assign & Status) -->
+          <div>
+            <!-- Section 1: Maintenance Assignment -->
+            <div style="background:#F8FAFC; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.25rem; margin-bottom:1.25rem;">
+              <h4 style="font-size:1.05rem; margin-bottom:0.75rem; color:var(--color-secondary);">
+                Assign Maintenance Staff
+              </h4>
+              <form id="admin-assign-form">
+                <div class="form-group">
+                  <label class="form-label" for="assign-staff-name">Staff Member Name / Electrician / Plumber</label>
+                  <input type="text" id="assign-staff-name" class="form-control" placeholder="e.g. Ramesh Kumar (Plumber)" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="assign-notes">Assignment Notes / Instructions</label>
+                  <textarea id="assign-notes" class="form-control" style="min-height:70px;" placeholder="e.g. Inspect pipe connector on 3rd floor. Replace valve if required."></textarea>
+                </div>
+
+                <button type="submit" id="btn-assign-submit" class="btn btn-secondary btn-sm" style="width:100%;">
+                  Save Assignment
+                </button>
+              </form>
+            </div>
+
+            <!-- Section 2: Status Management -->
+            <div style="background:#F8FAFC; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.25rem;">
+              <h4 style="font-size:1.05rem; margin-bottom:0.75rem; color:var(--color-secondary);">
+                Update Complaint Status
+              </h4>
+              <form id="admin-status-form">
+                <div class="form-group">
+                  <label class="form-label" for="manage-new-status">Select New Status</label>
+                  <select id="manage-new-status" class="form-control" required>
+                    <option value="Pending">Pending</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <!-- Mandatory Rejection Reason -->
+                <div class="form-group" id="status-rejection-group" style="display:none;">
+                  <label class="form-label" for="status-rejection-reason">
+                    <span>Rejection Reason (Required)</span>
+                    <span class="required">*</span>
+                  </label>
+                  <textarea id="status-rejection-reason" class="form-control" placeholder="Provide a detailed and transparent explanation for rejecting this request..."></textarea>
+                </div>
+
+                <!-- Resolution Details -->
+                <div class="form-group" id="status-resolution-group" style="display:none;">
+                  <label class="form-label" for="status-resolution-details">
+                    <span>Resolution Details</span>
+                    <span class="required">*</span>
+                  </label>
+                  <textarea id="status-resolution-details" class="form-control" placeholder="Describe how the issue was fixed (e.g. Replaced faulty MCB and restored power)..."></textarea>
+                </div>
+
+                <button type="submit" id="btn-status-submit" class="btn btn-primary btn-sm" style="width:100%;">
+                  Update Status
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Right Column: Admin Communication & History -->
+          <div>
+            <!-- Admin Communication & Replies -->
+            <div style="background:#F8FAFC; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.25rem; margin-bottom:1.25rem;">
+              <h4 style="font-size:1.05rem; margin-bottom:0.75rem; color:var(--color-secondary);">
+                Communication &amp; Updates
+              </h4>
+              <div id="modal-replies-thread" class="replies-thread">
+                <!-- Injected via real-time listener -->
+              </div>
+
+              <form id="admin-reply-form" class="reply-form">
+                <textarea id="admin-reply-input" class="form-control" placeholder="Write a response or progress note visible to the student..." style="min-height:70px;" required></textarea>
+                <button type="submit" id="btn-reply-submit" class="btn btn-secondary btn-sm" style="align-self:flex-end;">
+                  Send Reply
+                </button>
+              </form>
+            </div>
+
+            <!-- Activity Audit Trail -->
+            <div style="background:#F8FAFC; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.25rem;">
+              <h4 style="font-size:1.05rem; margin-bottom:0.75rem; color:var(--color-secondary);">
+                🕒 Activity Audit Log
+              </h4>
+              <div id="modal-timeline" class="timeline" style="max-height:280px; overflow-y:auto;">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline close-manage-modal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/notifications.js"></script>
+  <script type="module" src="js/admin-dashboard.js"></script>
+</body>
+</html>

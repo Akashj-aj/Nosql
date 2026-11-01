@@ -1,0 +1,251 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userProfile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        userProfile(request.auth.uid).role == 'admin';
+    }
+
+    function isStudent() {
+      return isAuthenticated() &&
+        userProfile(request.auth.uid).role == 'student';
+    }
+
+    function nonEmptyString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    function validTimestamp(value) {
+      return value is timestamp;
+    }
+
+    function validCategory(value) {
+      return value in [
+        'Electrical',
+        'Plumbing and Water',
+        'Cleaning and Hygiene',
+        'Wi-Fi and Internet',
+        'Furniture',
+        'Food',
+        'Other'
+      ];
+    }
+
+    function validStatus(value) {
+      return value in [
+        'Pending',
+        'Assigned',
+        'In Progress',
+        'Resolved',
+        'Rejected'
+      ];
+    }
+
+    function validComplaint(data) {
+      return data.keys().hasAll([
+          'complaintId', 'studentId', 'studentName', 'usn', 'title',
+          'description', 'category', 'hostelBlock', 'roomNumber', 'status',
+          'assignedTo', 'assignmentNotes', 'adminResponse',
+          'resolutionDetails', 'rejectionReason', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'complaintId', 'studentId', 'studentName', 'usn', 'title',
+          'description', 'category', 'hostelBlock', 'roomNumber', 'status',
+          'assignedTo', 'assignmentNotes', 'adminResponse',
+          'resolutionDetails', 'rejectionReason', 'createdAt', 'updatedAt'
+        ]) &&
+        nonEmptyString(data.complaintId) &&
+        nonEmptyString(data.studentId) &&
+        nonEmptyString(data.studentName) &&
+        nonEmptyString(data.usn) &&
+        nonEmptyString(data.title) &&
+        nonEmptyString(data.description) &&
+        validCategory(data.category) &&
+        nonEmptyString(data.hostelBlock) &&
+        nonEmptyString(data.roomNumber) &&
+        validStatus(data.status) &&
+        data.assignedTo is string &&
+        data.assignmentNotes is string &&
+        data.adminResponse is string &&
+        data.resolutionDetails is string &&
+        data.rejectionReason is string &&
+        validTimestamp(data.createdAt) &&
+        validTimestamp(data.updatedAt);
+    }
+
+    match /usn_index/{usn} {
+      // USN reservations are private; only admins may inspect them.
+      allow get: if isAdmin();
+      allow list: if false;
+
+      // The user profile and USN reservation are created in one batch.
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll(['uid', 'createdAt']) &&
+        request.resource.data.keys().hasOnly(['uid', 'createdAt']) &&
+        request.resource.data.uid == request.auth.uid &&
+        validTimestamp(request.resource.data.createdAt) &&
+        !exists(/databases/$(database)/documents/usn_index/$(usn)) &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.uid == request.auth.uid &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.usn == usn;
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isAuthenticated() &&
+        (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.keys().hasAll([
+          'uid', 'name', 'email', 'usn', 'roomNumber', 'role', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'name', 'email', 'usn', 'roomNumber', 'role', 'createdAt'
+        ]) &&
+        request.resource.data.uid == userId &&
+        nonEmptyString(request.resource.data.name) &&
+        nonEmptyString(request.resource.data.email) &&
+        nonEmptyString(request.resource.data.usn) &&
+        request.resource.data.usn != 'PENDING' &&
+        nonEmptyString(request.resource.data.roomNumber) &&
+        request.resource.data.roomNumber != 'N/A' &&
+        request.resource.data.role == 'student' &&
+        validTimestamp(request.resource.data.createdAt) &&
+        getAfter(/databases/$(database)/documents/usn_index/$(request.resource.data.usn))
+          .data.uid == request.auth.uid;
+
+      allow update: if isAdmin() || (
+        isStudent() &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.usn == resource.data.usn &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        nonEmptyString(request.resource.data.name) &&
+        nonEmptyString(request.resource.data.roomNumber) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'roomNumber'])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /complaints/{complaintId} {
+      allow read: if isAuthenticated() &&
+        (isAdmin() || resource.data.studentId == request.auth.uid);
+
+      allow create: if isStudent() &&
+        validComplaint(request.resource.data) &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.studentName == userProfile(request.auth.uid).name &&
+        request.resource.data.usn == userProfile(request.auth.uid).usn &&
+        request.resource.data.roomNumber == userProfile(request.auth.uid).roomNumber &&
+        request.resource.data.status == 'Pending' &&
+        request.resource.data.assignedTo == '' &&
+        request.resource.data.assignmentNotes == '' &&
+        request.resource.data.adminResponse == '' &&
+        request.resource.data.resolutionDetails == '' &&
+        request.resource.data.rejectionReason == '';
+
+      allow update: if isAdmin() ? (
+        validComplaint(request.resource.data) &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.complaintId == resource.data.complaintId &&
+        request.resource.data.usn == resource.data.usn &&
+        request.resource.data.createdAt == resource.data.createdAt
+      ) : (
+        isStudent() &&
+        resource.data.studentId == request.auth.uid &&
+        validComplaint(request.resource.data) &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.complaintId == resource.data.complaintId &&
+        request.resource.data.usn == resource.data.usn &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.assignedTo == resource.data.assignedTo &&
+        request.resource.data.assignmentNotes == resource.data.assignmentNotes &&
+        request.resource.data.adminResponse == resource.data.adminResponse &&
+        request.resource.data.resolutionDetails == resource.data.resolutionDetails &&
+        request.resource.data.rejectionReason == resource.data.rejectionReason &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'studentName', 'title', 'description', 'category',
+            'hostelBlock', 'roomNumber', 'updatedAt'
+          ])
+      );
+
+      allow delete: if isAdmin();
+
+      match /history/{historyId} {
+        allow read: if isAuthenticated() &&
+          (isAdmin() ||
+            get(/databases/$(database)/documents/complaints/$(complaintId))
+              .data.studentId == request.auth.uid);
+
+        allow create: if isAdmin() &&
+          request.resource.data.keys().hasAll([
+            'actionType', 'message', 'performedBy', 'performedByName', 'timestamp'
+          ]) &&
+          request.resource.data.performedBy == request.auth.uid &&
+          nonEmptyString(request.resource.data.message) &&
+          nonEmptyString(request.resource.data.performedByName) &&
+          validTimestamp(request.resource.data.timestamp) &&
+          (
+            (
+              request.resource.data.actionType == 'ASSIGNED' &&
+              request.resource.data.keys().hasAll([
+                'previousStatus', 'newStatus'
+              ]) &&
+              request.resource.data.keys().hasOnly([
+                'actionType', 'message', 'previousStatus', 'newStatus',
+                'performedBy', 'performedByName', 'timestamp'
+              ]) &&
+              validStatus(request.resource.data.previousStatus) &&
+              validStatus(request.resource.data.newStatus)
+            ) ||
+            (
+              request.resource.data.actionType == 'STATUS_CHANGE' &&
+              request.resource.data.keys().hasAll([
+                'previousStatus', 'newStatus'
+              ]) &&
+              request.resource.data.keys().hasOnly([
+                'actionType', 'message', 'previousStatus', 'newStatus',
+                'performedBy', 'performedByName', 'timestamp'
+              ]) &&
+              validStatus(request.resource.data.previousStatus) &&
+              validStatus(request.resource.data.newStatus)
+            ) ||
+            (
+              request.resource.data.actionType == 'REPLY' &&
+              request.resource.data.keys().hasAll(['previousStatus', 'newStatus', 'role']) &&
+              request.resource.data.keys().hasOnly([
+                'actionType', 'message', 'previousStatus', 'newStatus',
+                'performedBy', 'performedByName', 'role', 'timestamp'
+              ]) &&
+              request.resource.data.previousStatus == null &&
+              request.resource.data.newStatus == null &&
+              request.resource.data.role == 'admin'
+            )
+          );
+
+        // History entries are immutable audit records.
+        allow update, delete: if false;
+      }
+    }
+  }
+}
