@@ -62,7 +62,6 @@ function renderStudentInfo() {
   const roomField = document.getElementById("complaint-room");
   if (roomField && currentProfile?.roomNumber && currentProfile.roomNumber !== "N/A") {
     roomField.value = currentProfile.roomNumber;
-    roomField.readOnly = true;
   }
 }
 
@@ -235,7 +234,7 @@ async function handleComplaintSubmit(e) {
       description,
       category,
       hostelBlock: hostelBlock || "Main Block",
-      roomNumber: currentProfile.roomNumber
+      roomNumber
     });
 
     notify.success(`Complaint #${res.complaintId} submitted successfully!`);

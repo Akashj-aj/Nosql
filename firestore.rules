@@ -154,7 +154,6 @@ service cloud.firestore {
         request.resource.data.studentId == request.auth.uid &&
         request.resource.data.studentName == userProfile(request.auth.uid).name &&
         request.resource.data.usn == userProfile(request.auth.uid).usn &&
-        request.resource.data.roomNumber == userProfile(request.auth.uid).roomNumber &&
         request.resource.data.status == 'Pending' &&
         request.resource.data.assignedTo == '' &&
         request.resource.data.assignmentNotes == '' &&
